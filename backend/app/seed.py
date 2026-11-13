@@ -1,45 +1,217 @@
-"""示例数据：每个模块给几条不同状态的记录，方便起服务后立刻看到内容。"""
+"""示例数据：每个模块给几条不同状态的记录，方便起服务后立刻看到内容。
+
+指标口径（metric）与看板配置（dashboard）之间存在真实的引用联动：
+- 指标定义按口径版本（versions）建模，发布过的版本是不可变快照，历史引用不会被最新草稿覆盖；
+- 看板的每个指标卡（cards）钉死在具体的「指标 + 口径版本」上，而不是读指标当前文本；
+- DASH-0002 的卡片引用了仍在「口径评审中」的 METR-0002，用于复现发布被拦截的场景。
+"""
 from __future__ import annotations
 
+import copy
 from typing import Any
 
+
+def _metric_version(
+    version: str,
+    *,
+    status: str,
+    formula: str,
+    grain: str,
+    window: str,
+    precision: int,
+    published_at: str | None = None,
+) -> dict[str, Any]:
+    return {
+        "version": version,
+        "status": status,
+        "snapshot": {
+            "指标名称": f"指标口径样例{version[1]}",
+            "计算公式": formula,
+            "统计粒度": grain,
+            "时间窗口": window,
+            "筛选条件": "来源=交易库且事件有效",
+            "精度位数": precision,
+        },
+        "published_at": published_at,
+    }
+
+
+def _metric_rows() -> list[dict[str, Any]]:
+    return [
+        {
+            "id": 1,
+            "status": "草稿",
+            "指标编号": "METR-0001",
+            "指标名称": "指标口径样例1",
+            "计算公式": "COUNT(DISTINCT user_id)",
+            "统计粒度": "天",
+            "时间窗口": "2026-09-01",
+            "筛选条件": "来源=交易库且事件有效",
+            "精度位数": 2,
+            "current_version": "v1",
+            "published_version": None,
+            "versions": [
+                _metric_version(
+                    "v1",
+                    status="草稿",
+                    formula="COUNT(DISTINCT user_id)",
+                    grain="天",
+                    window="2026-09-01",
+                    precision=2,
+                ),
+            ],
+        },
+        {
+            "id": 2,
+            "status": "口径评审中",
+            "指标编号": "METR-0002",
+            "指标名称": "指标口径样例2",
+            "计算公式": "SUM(order_amt)",
+            "统计粒度": "天",
+            "时间窗口": "2026-09-02",
+            "筛选条件": "来源=交易库且支付成功",
+            "精度位数": 2,
+            "current_version": "v1",
+            "published_version": None,
+            "versions": [
+                _metric_version(
+                    "v1",
+                    status="口径评审中",
+                    formula="SUM(order_amt)",
+                    grain="天",
+                    window="2026-09-02",
+                    precision=2,
+                ),
+            ],
+        },
+        {
+            "id": 3,
+            "status": "已发布",
+            "指标编号": "METR-0003",
+            "指标名称": "指标口径样例3",
+            "计算公式": "SUM(pay_amt)/COUNT(DISTINCT user_id)",
+            "统计粒度": "天",
+            "时间窗口": "2026-09-03",
+            "筛选条件": "来源=交易库且支付成功",
+            "精度位数": 2,
+            "current_version": "v1",
+            "published_version": "v1",
+            "versions": [
+                _metric_version(
+                    "v1",
+                    status="已发布",
+                    formula="SUM(pay_amt)/COUNT(DISTINCT user_id)",
+                    grain="天",
+                    window="2026-09-03",
+                    precision=2,
+                    published_at="2026-09-03T09:30:00",
+                ),
+            ],
+        },
+    ]
+
+
+def _card(card_id: str, metric_id: int, metric_code: str, version: str, grain: str) -> dict[str, Any]:
+    return {
+        "card_id": card_id,
+        "metric_id": metric_id,
+        "metric_code": metric_code,
+        "metric_version": version,
+        "card_grain": grain,
+        "refresh_enabled": True,
+    }
+
+
+def _dashboard_rows() -> list[dict[str, Any]]:
+    return [
+        {
+            "id": 1,
+            "status": "草稿",
+            "看板编号": "DASH-0001",
+            "看板名称": "看板配置样例1",
+            "布局模板": "两行四列",
+            "刷新间隔": 300,
+            "可见范围": "业务线内可见",
+            "所属业务线": "交易线",
+            "看板负责人": "值班同学1",
+            "revision": 1,
+            "published_at": None,
+            "cards": [
+                _card("C-1-1", 3, "METR-0003", "v1", "天"),
+            ],
+        },
+        {
+            "id": 2,
+            "status": "看板评审中",
+            "看板编号": "DASH-0002",
+            "看板名称": "看板配置样例2",
+            "布局模板": "两行四列",
+            "刷新间隔": 300,
+            "可见范围": "业务线内可见",
+            "所属业务线": "交易线",
+            "看板负责人": "值班同学2",
+            "revision": 1,
+            "published_at": None,
+            # C-2-1 引用仍在评审中的 METR-0002，发布前必须被拦截；C-2-2 引用正常发布版本，不应受影响。
+            "cards": [
+                _card("C-2-1", 2, "METR-0002", "v1", "天"),
+                _card("C-2-2", 3, "METR-0003", "v1", "天"),
+            ],
+        },
+        {
+            "id": 3,
+            "status": "已发布",
+            "看板编号": "DASH-0003",
+            "看板名称": "看板配置样例3",
+            "布局模板": "三行三列",
+            "刷新间隔": 600,
+            "可见范围": "全员可见",
+            "所属业务线": "交易线",
+            "看板负责人": "值班同学3",
+            "revision": 2,
+            "published_at": "2026-09-04T14:00:00",
+            "cards": [
+                _card("C-3-1", 3, "METR-0003", "v1", "天"),
+            ],
+        },
+    ]
+
+
+def _audit(audit_id: int, module: str, entry_id: int, action: str, ok: bool, detail: str, created_at: str) -> dict[str, Any]:
+    return {
+        "id": audit_id,
+        "module": module,
+        "entry_id": entry_id,
+        "action": action,
+        "result": "成功" if ok else "拒绝",
+        "detail": detail,
+        "operator": "system",
+        "created_at": created_at,
+    }
+
+
+def _audit_rows() -> list[dict[str, Any]]:
+    """种子审计：让初始已发布/评审中的记录自带可追溯的历史流水。"""
+    return [
+        _audit(1, "metric", 2, "提交口径评审", True,
+               "版本 v1 进入口径评审，定义状态推进至「口径评审中」", "2026-09-02T10:00:00"),
+        _audit(2, "metric", 3, "提交口径评审", True,
+               "版本 v1 进入口径评审，定义状态推进至「口径评审中」", "2026-09-03T09:00:00"),
+        _audit(3, "metric", 3, "发布指标", True,
+               "版本 v1 已发布并冻结为不可变快照", "2026-09-03T09:30:00"),
+        _audit(4, "dashboard", 2, "提交看板评审", True,
+               "引用校验通过，看板进入看板评审中", "2026-09-04T11:00:00"),
+        _audit(5, "dashboard", 3, "提交看板评审", True,
+               "引用校验通过，看板进入看板评审中", "2026-09-04T13:30:00"),
+        _audit(6, "dashboard", 3, "发布看板", True,
+               "全部 1 张指标卡引用口径均已发布且粒度一致，看板发布成功并生成发布记录",
+               "2026-09-04T14:00:00"),
+    ]
+
+
 SEED_ROWS: dict[str, list[dict[str, Any]]] = {
-    "metric": [{'id': 1,
-  'status': '草稿',
-  'pending': True,
-  'abnormal': False,
-  '指标编号': 'METR-0001',
-  '指标名称': '指标口径样例1',
-  '计算公式': '指标口径样例1',
-  '统计粒度': '指标口径样例1',
-  '时间窗口': '2026-09-01',
-  '筛选条件': '指标口径样例1',
-  '精度位数': '指标口径样例1',
-  '口径版本': '指标口径样例1'},
- {'id': 2,
-  'status': '口径评审中',
-  'pending': True,
-  'abnormal': True,
-  '指标编号': 'METR-0002',
-  '指标名称': '指标口径样例2',
-  '计算公式': '指标口径样例2',
-  '统计粒度': '指标口径样例2',
-  '时间窗口': '2026-09-02',
-  '筛选条件': '指标口径样例2',
-  '精度位数': '指标口径样例2',
-  '口径版本': '指标口径样例2'},
- {'id': 3,
-  'status': '已发布',
-  'pending': False,
-  'abnormal': False,
-  '指标编号': 'METR-0003',
-  '指标名称': '指标口径样例3',
-  '计算公式': '指标口径样例3',
-  '统计粒度': '指标口径样例3',
-  '时间窗口': '2026-09-03',
-  '筛选条件': '指标口径样例3',
-  '精度位数': '指标口径样例3',
-  '口径版本': '指标口径样例3'}],
+    "metric": _metric_rows(),
+    "audit": _audit_rows(),
     "queryboard": [{'id': 1,
   'status': '草稿',
   'pending': True,
@@ -184,42 +356,7 @@ SEED_ROWS: dict[str, list[dict[str, Any]]] = {
   '显著性阈值': '分析方案样例3',
   '输出图表类型': '分析方案样例3',
   '调度周期': '分析方案样例3'}],
-    "dashboard": [{'id': 1,
-  'status': '草稿',
-  'pending': True,
-  'abnormal': False,
-  '看板编号': 'DASH-0001',
-  '看板名称': '看板配置样例1',
-  '包含指标': '看板配置样例1',
-  '布局模板': '看板配置样例1',
-  '刷新间隔': '看板配置样例1',
-  '可见范围': '看板配置样例1',
-  '所属业务线': '看板配置样例1',
-  '看板负责人': '看板配置样例1'},
- {'id': 2,
-  'status': '看板评审中',
-  'pending': True,
-  'abnormal': True,
-  '看板编号': 'DASH-0002',
-  '看板名称': '看板配置样例2',
-  '包含指标': '看板配置样例2',
-  '布局模板': '看板配置样例2',
-  '刷新间隔': '看板配置样例2',
-  '可见范围': '看板配置样例2',
-  '所属业务线': '看板配置样例2',
-  '看板负责人': '看板配置样例2'},
- {'id': 3,
-  'status': '已发布',
-  'pending': False,
-  'abnormal': False,
-  '看板编号': 'DASH-0003',
-  '看板名称': '看板配置样例3',
-  '包含指标': '看板配置样例3',
-  '布局模板': '看板配置样例3',
-  '刷新间隔': '看板配置样例3',
-  '可见范围': '看板配置样例3',
-  '所属业务线': '看板配置样例3',
-  '看板负责人': '看板配置样例3'}],
+    "dashboard": _dashboard_rows(),
     "delivery": [{'id': 1,
   'status': '草稿',
   'pending': True,
@@ -653,3 +790,8 @@ SEED_ROWS: dict[str, list[dict[str, Any]]] = {
   '验证周期': '数据验证样例3',
   '最近验证结果': '数据验证样例3'}]
 }
+
+
+def build_seed_tables() -> dict[str, list[dict[str, Any]]]:
+    """深拷贝一份种子数据，保证每次重建仓库时互不污染。"""
+    return copy.deepcopy(SEED_ROWS)

@@ -31,5 +31,38 @@ body { margin: 0; background: #f6f8fb; color: #1f2937; }
 .btn.primary { background: var(--brand); border-color: var(--brand); color: #fff; }
 .btn.ghost { background: transparent; }
 .link { border: none; background: none; color: var(--brand); cursor: pointer; padding: 0; }
-.page-foot { display: flex; justify-content: space-between; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.page-foot { display: flex; justify-content: space-between; gap: 12px; margin-top: 8px; font-size: 12px; color: var(--muted); }
 .error-text { color: #b42318; }
+.success-text { color: #067647; }
+.muted-text { color: var(--muted); font-size: 12px; }
+
+/* 状态标签 */
+.status-tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; white-space: nowrap; }
+.tag-draft { background: #f2f4f7; color: #475467; }
+.tag-review { background: #fffaeb; color: #b54708; }
+.tag-published { background: #ecfdf3; color: #067647; }
+.tag-offline { background: #fef3f2; color: #b42318; }
+
+/* 弹窗与抽屉 */
+.modal-mask, .drawer-mask { position: fixed; inset: 0; background: rgba(16, 24, 40, 0.45); z-index: 50; display: flex; }
+.modal-mask { align-items: center; justify-content: center; }
+.modal { width: 520px; max-height: 86vh; overflow: auto; background: #fff; border-radius: 10px; padding: 20px; }
+.modal-form { display: flex; flex-direction: column; gap: 10px; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px; }
+.rule-hint { font-size: 12px; color: var(--muted); background: #f8fafc; border: 1px solid var(--border); border-radius: 6px; padding: 8px; }
+.drawer-mask { justify-content: flex-end; }
+.drawer { width: 720px; max-width: 92vw; height: 100%; background: #fff; padding: 20px; overflow: auto; }
+.drawer-wide { width: 980px; }
+.drawer-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.drawer h4 { margin: 18px 0 8px; font-size: 14px; }
+
+/* 发布校验横幅 */
+.banner { border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 12px; }
+.banner-ok { background: #ecfdf3; border: 1px solid #a6f4c5; color: #067647; }
+.banner-block { background: #fef3f2; border: 1px solid #fda29b; color: #b42318; }
+.blocker-list { margin: 6px 0 0; padding-left: 18px; }
+
+/* 卡片版本切换 */
+.switch-row { display: flex; gap: 6px; align-items: center; }
+.switch-input { width: 96px; padding: 4px 6px; border: 1px solid var(--border); border-radius: 6px; }
+select, .modal-form input { padding: 6px 8px; border: 1px solid var(--border); border-radius: 6px; }

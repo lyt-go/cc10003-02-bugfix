@@ -28,6 +28,30 @@ class EntryPayload(BaseModel):
     remark: str | None = None
 
 
+class CardPayload(BaseModel):
+    """看板挂载指标卡时钉死的引用：指标 + 口径版本 + 卡片计算粒度。"""
+
+    metric_id: int
+    metric_version: str
+    card_grain: str
+    card_id: str | None = None
+
+
+class CardSwitchPayload(BaseModel):
+    """切换卡片口径版本：带 expected_revision 做并发乐观锁。"""
+
+    metric_version: str
+    expected_revision: int
+    card_grain: str | None = None
+
+
+class AuditPage(BaseModel):
+    """审计记录查询结果。"""
+
+    items: list[dict[str, Any]]
+    total: int
+
+
 
 class MetricEntry(BaseModel):
     """指标定义明细结构。"""
